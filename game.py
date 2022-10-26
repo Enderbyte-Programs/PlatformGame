@@ -39,20 +39,47 @@ def drawbtext(win,message):
 
 def init(win):
     drawbtext(win,"Loading...")
-
+ents = []
 class DrawableRect():
-    def __init__(self,gx: int,gy: int,sx: int,sy: int,colour,callsign="__ENTITY__"):
+    def __init__(self,gx: int,gy: int,sx: int,sy: int,colour,callsign="__ENTITY__",allowmovement=False,collide=False):
         self.gx = gx
         self.gy = gy
         self.sx = sx
         self.sy = sy
         self.colour = colour
         self.callsign = callsign
-    def draw(self,win):
+        self.speed = 5
+        self.am = allowmovement
         self.surf = pygame.Surface((self.sx,self.sy))
         self.surf.fill(self.colour)
-        self.rect = pygame.Rect(self.sx+(camera[0]-GAMESIZEX//2),self.sy+(camera[1]-GAMESIZEY//2),self.sx,self.sy)
+        self.collide = collide
+        self.prevpos = []
+    def draw(self,win):
+        
+        self.rect = pygame.Rect(self.gx-(camera[0]-X_SIZE//2),self.gy-(camera[1]-Y_SIZE//2),self.sx,self.sy)
         win.blit(self.surf,self.rect)
+    def update(self,pressed_keys):
+        global gravity
+        global jumptick
+        if self.am:
+            if pressed_keys[pygame.K_UP]:
+                jumptick = 10
+            if pressed_keys[pygame.K_DOWN]:
+                self.gy += self.speed
+            if pressed_keys[pygame.K_RIGHT]:
+                self.gx += self.speed
+            if pressed_keys[pygame.K_LEFT]:
+                self.gx -= self.speed
+            for e in ents:
+                if e is not self:
+                    if self.rect.colliderect(e.rect):
+                        print("Collision detected")
+                        self.gx, self.gy = self.prevpos[1]
+                        self.gy -= 1
+                        gravity = 0
+            self.prevpos.insert(0,(self.gx,self.gy))
+            self.prevpos = self.prevpos[0:4]
+            
     def __repr__(self) -> str:
         return str(self.callsign)
 
@@ -63,12 +90,25 @@ def findbycallsign(ents: list,calls: str):
     except ValueError:
         return None
 
+def game2local(x,y):
+    return (camera[0] + x,camera[1] + y)
+
+def local2game(x,y):
+    return (camera[0] - x, camera[1] - y)
+
 def game(win):
     global camera
-    camera = [GAMESIZEX//2+X_SIZE//2,GAMESIZEY//2+Y_SIZE//2]
-    ents = []
-    player = DrawableRect(500,500,30,30,(255,255,255),callsign="__pl")
-    ents.append(player)
+    global ents
+    global gravity
+    global jumptick
+    lockcamera = False
+    gravity = 1
+    jumptick = 0
+    camera = [35,-180]
+    player = DrawableRect(camera[0],camera[1],30,30,(255,255,255),"player",True,False)
+    
+    ents.append(DrawableRect(600,600,100,100,(255,0,0),"",False,False))
+    ents.append(DrawableRect(0,0,1000,50,(0,255,0),allowmovement=False,collide=True))
     print(ents)
     while True:
         win.fill((0,0,0))
@@ -80,27 +120,27 @@ def game(win):
                     game(win)
             elif event.type == pygame.QUIT:
                 sys.exit()
+        k = pygame.key.get_pressed()
         for ent in ents:
             ent.draw(win)
-        k = pygame.key.get_pressed()
-        if k[pygame.K_UP]:
-            camera[1] -= 5
-            findbycallsign(ents,"__pl").gy -= 5
-        if k[pygame.K_DOWN]:
-            camera[1] += 5
-            findbycallsign(ents,"__pl").gy += 5
-        if k[pygame.K_LEFT]:
-            camera[0] -= 5
-            findbycallsign(ents,"__pl").gx -= 5
-        if k[pygame.K_RIGHT]:
-            camera[0] += 5
-            findbycallsign(ents,"__pl").gx += 5
-        draw_text(win,str(camera),24,(255,255,255),0,0)
+            ent.update(k)
+    
+        player.draw(win)
+        player.update(k)
+        camera = [player.gx,player.gy]
+        player.gy += gravity
+        if gravity < 10:
+            gravity += 1
+        if jumptick > 0:
+            player.gy -= jumptick
+            jumptick -= 1
+        draw_text(win,f"{-camera[0]},{-camera[1]}",24,(255,255,255),0,0)
+        draw_text(win,str(round(clock.get_fps()))+" FPS",24,(255,255,255),100,0)
         pygame.display.update()
+        pygame.display.flip()
         clock.tick(60)  
 
 def main_menu(win):
-    sleep(1)
     while True:
         win.fill((0,0,0))
         draw_text_middle(win,"Platform game",64,(255,255,255))

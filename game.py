@@ -75,14 +75,25 @@ class DrawableRect():
                 if e is not self:
                     if self.rect.colliderect(e.rect):
                         print("Collision detected")
-                        self.gx, self.gy = self.prevpos[0]
+                        pi = 0
+                        for px,py in self.prevpos:
+                            vrect = pygame.Rect(px-(camera[0]-X_SIZE//2),py-(camera[1]-Y_SIZE//2),self.sx,self.sy)
+                            if vrect.colliderect(e.rect):
+                                pi += 1
+                                continue
+                            else:
+                                
+                                self.gx, self.gy = self.prevpos[pi]
+                                break
+                            
+                        
                         jumptick = 0
                         if e.gy > self.gy:
                             self.gy -= 1
                             gravity = 0
                         
             self.prevpos.insert(0,(self.gx,self.gy))
-            self.prevpos = self.prevpos[0:4]
+            self.prevpos = self.prevpos[0:20]
             
     def __repr__(self) -> str:
         return str(self.callsign)

@@ -48,7 +48,7 @@ class DrawableRect():
         self.sy = sy
         self.colour = colour
         self.callsign = callsign
-        self.speed = 5
+        self.speed = 10
         self.am = allowmovement
         self.surf = pygame.Surface((self.sx,self.sy))
         self.surf.fill(self.colour)
@@ -63,7 +63,8 @@ class DrawableRect():
         global jumptick
         if self.am:
             if pressed_keys[pygame.K_UP]:
-                jumptick = 10
+                if jumptick == 0:
+                    jumptick = 30
             if pressed_keys[pygame.K_DOWN]:
                 self.gy += self.speed
             if pressed_keys[pygame.K_RIGHT]:
@@ -74,9 +75,12 @@ class DrawableRect():
                 if e is not self:
                     if self.rect.colliderect(e.rect):
                         print("Collision detected")
-                        self.gx, self.gy = self.prevpos[1]
-                        self.gy -= 1
-                        gravity = 0
+                        self.gx, self.gy = self.prevpos[0]
+                        jumptick = 0
+                        if e.gy > self.gy:
+                            self.gy -= 1
+                            gravity = 0
+                        
             self.prevpos.insert(0,(self.gx,self.gy))
             self.prevpos = self.prevpos[0:4]
             
@@ -109,6 +113,7 @@ def game(win):
     
     ents.append(DrawableRect(600,600,100,100,(255,0,0),"",False,False))
     ents.append(DrawableRect(0,0,1000,50,(0,255,0),allowmovement=False,collide=True))
+    ents.append(DrawableRect(900,-100,500,50,(0,0,255),allowmovement=False,collide=True))
     print(ents)
     while True:
         win.fill((0,0,0))
@@ -118,6 +123,8 @@ def game(win):
                     sys.exit()
                 elif event.key == pygame.K_RETURN:
                     game(win)
+                elif event.key == pygame.K_l:
+                    lockcamera = not lockcamera
             elif event.type == pygame.QUIT:
                 sys.exit()
         k = pygame.key.get_pressed()
@@ -127,9 +134,10 @@ def game(win):
     
         player.draw(win)
         player.update(k)
-        camera = [player.gx,player.gy]
+        if not lockcamera:
+            camera = [player.gx,player.gy]
         player.gy += gravity
-        if gravity < 10:
+        if gravity < 30:
             gravity += 1
         if jumptick > 0:
             player.gy -= jumptick
@@ -150,6 +158,7 @@ def main_menu(win):
                     sys.exit()
                 elif event.key == pygame.K_RETURN:
                     game(win)
+                
             elif event.type == pygame.QUIT:
                 sys.exit()
         pygame.display.update()

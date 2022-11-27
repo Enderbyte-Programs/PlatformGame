@@ -54,26 +54,47 @@ class DrawableRect():
         self.collide = collide
         self.prevpos = []
     def draw(self,win):
-        
+        self.surf = pygame.Surface((self.sx,self.sy))
+        self.surf.fill(self.colour)
         self.rect = pygame.Rect(self.gx-(camera[0]-X_SIZE//2),self.gy-(camera[1]-Y_SIZE//2),self.sx,self.sy)
         win.blit(self.surf,self.rect)
     def update(self,pressed_keys):
         global gravity
         global jumptick
+        global lives
+        global immune
+        __isbre = False
         if self.am:
             if pressed_keys[pygame.K_UP]:
                 if jumptick == 0:
-                    jumptick = 30
+                    __isbre = True
+                    gravity = 0
             if pressed_keys[pygame.K_DOWN]:
                 self.gy += self.speed
             if pressed_keys[pygame.K_RIGHT]:
-                self.gx += self.speed
+                if not __isbre:
+                    self.gx += self.speed//2
+                else:
+                    self.gx += 1
             if pressed_keys[pygame.K_LEFT]:
-                self.gx -= self.speed
+                if not __isbre:
+                    self.gx -= self.speed//2
+                else:
+                    self.gx -= 1
             for e in ents:
                 if e is not self:
                     if self.rect.colliderect(e.rect):
-                        lose_menu(win,score)
+                        if immune < 1:
+                            lives -= 1
+                            draw_text_middle(win,f"You Crashed! ({lives+1} lives)",32,(0,0,0))
+                            self.collide = False
+                            pygame.display.update()
+                            pygame.time.wait(1000)
+                            immune = 120
+                            self.colour = (0,0,128)
+                            break
+                        else:
+                            break
                         
             self.prevpos.insert(0,(self.gx,self.gy))
             self.prevpos = self.prevpos[0:20]
@@ -94,18 +115,22 @@ def game2local(x,y):
 def local2game(x,y):
     return (camera[0] - x, camera[1] - y)
 
-def game(win):
+def game(win: pygame.Surface):
     global camera
     global ents
     global gravity
     global jumptick
     global X_SIZE
     global Y_SIZE
-    global score
+    global lives
+    global immune
+    immune = 0
     lockcamera = False
     DEBUG = False
     paused = False
+    X_SIZE, Y_SIZE = win.get_size()
     gravity = 1
+    lives = 3
     jumptick = 0
     camera = [35,-180]
     player = DrawableRect(camera[0],camera[1],30,30,(0,0,255),"player",True,False)
@@ -129,15 +154,18 @@ def game(win):
                         nx = DrawableRect(random.randint(-1000+(poffset[0]+opx)*1000,1000+(poffset[0]+opx)*1000),random.randint(-1000+(poffset[1]+opy)*1000,1000+(poffset[1]+opy)*1000),50,50,(0,255,0),"",False,True)
                         assm = (nx.gx//1000,nx.gy//1000)
                         #print(assm)
-                        if assm not in pofx and (nx.gx > player.gx + 200 or nx.gx < player.gx - 100) and (nx.gy > player.gy + 200 or nx.gy < player.gy):
-                            ents.append(nx)
+                        if assm not in pofx:
+                            if tick < 100:
+                                if ((nx.gx > player.gx + 200 or nx.gx < player.gx - 100) and (nx.gy > player.gy + 200 or nx.gy < player.gy)):
+                                    ents.append(nx)
+                            else:
+                                ents.append(nx)
                 pofx.append((poffset[0]+opx,poffset[1]+opy))
         #print(len(ents))
         if tick > 100 and len(ents) > 2000:
 
             ents = ents[1000:]
-        if tick / 10 == tick // 10:
-            score += 1
+        score = player.gy//100+5
         win.fill((255,255,255))
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -155,11 +183,16 @@ def game(win):
                 Y_SIZE = event.h
                 camera = [player.gx,player.gy]
         k = pygame.key.get_pressed()
-        
+        if lives == 0:
+            lose_menu(win,score)
         for ent in ents:
             ent.draw(win)
             ent.update(k)
-    
+        if immune > 0:
+            immune -= 1
+        if immune == 0:
+            player.collide = False
+            player.colour = (0,0,255)
         player.draw(win)
         if not paused:
             player.update(k)
@@ -176,8 +209,9 @@ def game(win):
             jumptick -= 1
         draw_text(win,f"{-camera[0]},{-camera[1]}",24,(0,0,255),0,0)
         if DEBUG:
-            draw_text(win,str(round(clock.get_fps()))+" FPS",24,(0,0,255),100,0)
+            draw_text(win,str(round(clock.get_fps()))+" FPS"+f" Tick: {tick} | Trees: {len(ents)} | Immunity: {immune}",24,(0,0,255),100,0)
         draw_text(win,f"Score: {score}",24,(0,0,0),0,20)
+        draw_text(win,f"Lives: {lives}",24,(0,0,0),0,40)
         pygame.display.update()
         pygame.display.flip()
         clock.tick(60)  
